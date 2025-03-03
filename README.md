@@ -19,3 +19,6 @@ F5-TTS has it is own licence, MIT
 
 
 https://github.com/SWivid/F5-TTS
+
+
+Special thanks to Emirhan -> https://huggingface.co/emirhanbilgic
