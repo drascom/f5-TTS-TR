@@ -1,5 +1,15 @@
 ---
 license: mit
+datasets:
+- mozilla-foundation/common_voice_17_0
+language:
+- tr
+tags:
+- text-to-speech
+- audio
+- voice
+- tts
+- tts-engine
 ---
 
 
