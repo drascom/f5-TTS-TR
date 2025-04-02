@@ -20,7 +20,7 @@ F5-TTS has it is own licence, MIT
 
 https://github.com/SWivid/F5-TTS
 
-Bu linkten deneyebilirsiniz
+Asagidaki linkten deneyebilirsiniz.
 
 https://huggingface.co/spaces/Karayakar/F5-TTS
 
