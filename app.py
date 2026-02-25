@@ -16,6 +16,18 @@ from f5_tts.api import F5TTS
 BASE_DIR = Path(__file__).resolve().parent
 
 
+def _looks_like_git_lfs_pointer(path: Path) -> bool:
+    # LFS pointer files are tiny text files starting with this marker.
+    if not path.exists() or path.stat().st_size > 4096:
+        return False
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            head = f.read(256)
+    except OSError:
+        return False
+    return head.startswith("version https://git-lfs.github.com/spec/v1")
+
+
 @dataclass(frozen=True)
 class Settings:
     model_name: str = os.getenv("F5_MODEL_NAME", "F5TTS_Base")
@@ -61,6 +73,12 @@ def get_settings() -> Settings:
 
     if not settings.ckpt_file.exists():
         raise RuntimeError(f"Checkpoint file not found: {settings.ckpt_file}")
+    if _looks_like_git_lfs_pointer(settings.ckpt_file):
+        raise RuntimeError(
+            "Checkpoint file is a Git LFS pointer, not a real safetensors model. "
+            "Download the actual model file (expected size ~1.3GB) and place it at "
+            f"{settings.ckpt_file}."
+        )
     if not settings.vocab_file.exists():
         raise RuntimeError(f"Vocab file not found: {settings.vocab_file}")
     if not settings.reference_wav.exists():
@@ -101,8 +119,11 @@ def api_speakers() -> dict[str, list[str]]:
 
 
 def _synthesize(text: str, speaker_wav: str | None = None, speaker_id: str | None = None) -> bytes:
-    settings = get_settings()
-    engine = get_engine()
+    try:
+        settings = get_settings()
+        engine = get_engine()
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="text is required")
