@@ -21,7 +21,7 @@ python -m pip install --upgrade pip setuptools wheel
 python -m pip install --index-url "${TORCH_INDEX_URL}" torch torchvision torchaudio
 python -m pip install \
   flask \
-  huggingface_hub \
+  "huggingface_hub[cli]" \
   librosa \
   numpy \
   scipy \
@@ -31,10 +31,22 @@ python -m pip install \
   accelerate \
   bitsandbytes
 
-huggingface-cli download "${HF_REPO}" \
-  --repo-type model \
-  --local-dir "${ROOT_DIR}" \
-  --local-dir-use-symlinks False
+if command -v huggingface-cli >/dev/null 2>&1; then
+  huggingface-cli download "${HF_REPO}" \
+    --repo-type model \
+    --local-dir "${ROOT_DIR}" \
+    --local-dir-use-symlinks False
+elif command -v hf >/dev/null 2>&1; then
+  hf download "${HF_REPO}" \
+    --repo-type model \
+    --local-dir "${ROOT_DIR}" \
+    --local-dir-use-symlinks False
+else
+  python -m huggingface_hub.commands.huggingface_cli download "${HF_REPO}" \
+    --repo-type model \
+    --local-dir "${ROOT_DIR}" \
+    --local-dir-use-symlinks False
+fi
 
 export ORPHEUS_MODEL_DIR="${ROOT_DIR}"
 export ORPHEUS_DEVICE="${ORPHEUS_DEVICE:-cuda}"
