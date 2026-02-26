@@ -1,4 +1,0 @@
-f5-tts==1.1.16
-fastapi==0.133.0
-uvicorn==0.41.0
-soundfile==0.13.1
