@@ -3,11 +3,19 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
+
+cd "${ROOT_DIR}"
+
+# Load project-local environment variables if present (e.g., HF_TOKEN).
+if [[ -f "${ROOT_DIR}/.env" ]]; then
+  set -a
+  source "${ROOT_DIR}/.env"
+  set +a
+fi
+
 HF_REPO="${HF_REPO:-Karayakar/Orpheus-TTS-Turkish-PT-5000}"
 TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
 PORT="${PORT:-5400}"
-
-cd "${ROOT_DIR}"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required"
