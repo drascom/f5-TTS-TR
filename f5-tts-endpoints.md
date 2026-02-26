@@ -1,7 +1,7 @@
 # F5 TTS API Endpoints (Updated)
 
 Base URL:
-- `https://tts.drascom.uk`
+- `https://F5-1.drascom.uk`
 
 Audio response type:
 - `audio/wav`
@@ -20,7 +20,7 @@ Service and model settings check.
 
 Example:
 ```bash
-curl -s https://tts.drascom.uk/health
+curl -s https://F5-1.drascom.uk/health
 ```
 
 Success response:
@@ -38,7 +38,7 @@ Returns supported language list.
 
 Example:
 ```bash
-curl -s https://tts.drascom.uk/languages
+curl -s https://F5-1.drascom.uk/languages
 ```
 
 Response:
@@ -51,7 +51,7 @@ Returns available speaker IDs.
 
 Example:
 ```bash
-curl -s https://tts.drascom.uk/speakers
+curl -s https://F5-1.drascom.uk/speakers
 ```
 
 Response:
@@ -70,7 +70,7 @@ Query params:
 
 Example:
 ```bash
-curl -G "https://tts.drascom.uk/tts" \
+curl -G "https://F5-1.drascom.uk/tts" \
   --data-urlencode "text=Merhaba, bu bir testtir." \
   --data-urlencode "language-id=tr" \
   --data-urlencode "speaker-id=default" \
@@ -97,7 +97,7 @@ Notes:
 
 Example:
 ```bash
-curl -X POST "https://tts.drascom.uk/tts" \
+curl -X POST "https://F5-1.drascom.uk/tts" \
   -H "Content-Type: application/json" \
   -d '{"text":"Merhaba, bu bir testtir.","language-id":"tr","speaker-id":"default"}' \
   --output test_post.wav
@@ -125,7 +125,7 @@ Notes:
 
 Example:
 ```bash
-curl -X POST "https://tts.drascom.uk/v1/audio/speech" \
+curl -X POST "https://F5-1.drascom.uk/v1/audio/speech" \
   -H "Content-Type: application/json" \
   -d '{"input":"Merhaba, OpenAI uyumlu endpoint testi.","voice":"default"}' \
   --output test_openai.wav
