@@ -34,7 +34,8 @@ def _resolve_device(requested_device: str) -> str:
 
     if device == "cuda":
         if torch.cuda.is_available():
-            return "cuda"
+            # safetensors/torch loader is more reliable with an explicit CUDA index.
+            return "cuda:0"
         return "cpu"
 
     if device == "mps":
