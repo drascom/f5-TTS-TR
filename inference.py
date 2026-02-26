@@ -204,6 +204,7 @@ def generate():
     ensure_initialized()
     payload = request.get_json(silent=True) or {}
     text = (payload.get("text") or "").strip()
+    requested_output_path = (payload.get("output_path") or "").strip()
     if not text:
         return jsonify({"error": "text is required"}), 400
 
@@ -213,8 +214,20 @@ def generate():
     samples = convert_tokens_to_speech(generated_ids, snac_model)
     wav_forms = to_wav_from(samples)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_file = OUTPUT_DIR / f"output_{int(datetime.now().timestamp())}.wav"
+    if requested_output_path:
+        raw_path = Path(requested_output_path)
+        if raw_path.is_absolute():
+            out_file = raw_path
+        else:
+            out_file = OUTPUT_DIR / raw_path
+
+        if out_file.suffix.lower() != ".wav":
+            out_file = out_file / f"output_{int(datetime.now().timestamp())}.wav"
+    else:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        out_file = OUTPUT_DIR / f"output_{int(datetime.now().timestamp())}.wav"
+
+    out_file.parent.mkdir(parents=True, exist_ok=True)
     save_wav(wav_forms, 24000, str(out_file))
 
     return jsonify({"status": "success", "file": str(out_file)})
