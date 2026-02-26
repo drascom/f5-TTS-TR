@@ -31,22 +31,14 @@ python -m pip install \
   accelerate \
   bitsandbytes
 
-if command -v huggingface-cli >/dev/null 2>&1; then
-  huggingface-cli download "${HF_REPO}" \
-    --repo-type model \
-    --local-dir "${ROOT_DIR}" \
-    --local-dir-use-symlinks False
-elif command -v hf >/dev/null 2>&1; then
-  hf download "${HF_REPO}" \
-    --repo-type model \
-    --local-dir "${ROOT_DIR}" \
-    --local-dir-use-symlinks False
-else
-  python -m huggingface_hub.commands.huggingface_cli download "${HF_REPO}" \
-    --repo-type model \
-    --local-dir "${ROOT_DIR}" \
-    --local-dir-use-symlinks False
-fi
+python - <<PY
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id="${HF_REPO}",
+    repo_type="model",
+    local_dir="${ROOT_DIR}",
+)
+PY
 
 export ORPHEUS_MODEL_DIR="${ROOT_DIR}"
 export ORPHEUS_DEVICE="${ORPHEUS_DEVICE:-cuda}"
