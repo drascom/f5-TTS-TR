@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import threading
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from f5_tts.api import F5TTS
 
 
 BASE_DIR = Path(__file__).resolve().parent
+logger = logging.getLogger(__name__)
 
 
 def _looks_like_git_lfs_pointer(path: Path) -> bool:
@@ -112,12 +114,27 @@ def get_settings() -> Settings:
 @lru_cache(maxsize=1)
 def get_engine() -> F5TTS:
     settings = get_settings()
-    return F5TTS(
-        model=settings.model_name,
-        ckpt_file=str(settings.ckpt_file),
-        vocab_file=str(settings.vocab_file),
-        device=settings.device,
-    )
+    try:
+        return F5TTS(
+            model=settings.model_name,
+            ckpt_file=str(settings.ckpt_file),
+            vocab_file=str(settings.vocab_file),
+            device=settings.device,
+        )
+    except OSError as e:
+        if settings.device != "cpu" and "No such device" in str(e):
+            logger.warning(
+                "Model init failed on device '%s' (%s). Retrying on cpu.",
+                settings.device,
+                e,
+            )
+            return F5TTS(
+                model=settings.model_name,
+                ckpt_file=str(settings.ckpt_file),
+                vocab_file=str(settings.vocab_file),
+                device="cpu",
+            )
+        raise
 
 
 inference_lock = threading.Lock()
