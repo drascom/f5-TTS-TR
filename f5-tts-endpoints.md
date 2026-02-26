@@ -1,16 +1,22 @@
-# F5 TTS API Endpoints
+# F5 TTS API Endpoints (Updated)
 
 Base URL:
 - `https://tts.drascom.uk`
 
-Content type:
-- Request: `application/json`
-- Response (audio): `audio/wav`
+Audio response type:
+- `audio/wav`
 
-## 1) Health Check
+JSON error format:
+```json
+{
+  "detail": "error message"
+}
+```
+
+## 1) Health
 
 ### `GET /health`
-Service ayakta mı kontrol eder.
+Service and model settings check.
 
 Example:
 ```bash
@@ -22,14 +28,17 @@ Success response:
 {"status":"ok"}
 ```
 
+Possible errors:
+- `500` if model/checkpoint/vocab/reference WAV is missing or invalid.
+
 ## 2) Coqui-Compatible Endpoints
 
-### `GET /api/languages`
-Desteklenen dilleri döner.
+### `GET /languages`
+Returns supported language list.
 
 Example:
 ```bash
-curl -s https://tts.drascom.uk/api/languages
+curl -s https://tts.drascom.uk/languages
 ```
 
 Response:
@@ -37,12 +46,12 @@ Response:
 {"languages":["tr"]}
 ```
 
-### `GET /api/speakers`
-Desteklenen speaker listesini döner.
+### `GET /speakers`
+Returns available speaker IDs.
 
 Example:
 ```bash
-curl -s https://tts.drascom.uk/api/speakers
+curl -s https://tts.drascom.uk/speakers
 ```
 
 Response:
@@ -50,38 +59,45 @@ Response:
 {"speakers":["default"]}
 ```
 
-### `GET /api/tts`
-Query param ile TTS üretir.
+### `GET /tts`
+Generates WAV with query params.
 
 Query params:
-- `text` (required)
-- `language-id` (optional, default: `tr`)
-- `speaker-id` (optional, default: `default`)
-- `speaker-wav` (optional, server path; verilmezse varsayılan referans ses kullanılır)
+- `text` (required, min length: 1)
+- `language-id` (optional, default: `tr`, currently kept for compatibility)
+- `speaker-id` (optional; accepted values: `default`, `tr`, `main`)
+- `speaker-wav` (optional; absolute/local server path to WAV file)
 
 Example:
 ```bash
-curl -G "https://tts.drascom.uk/api/tts" \
+curl -G "https://tts.drascom.uk/tts" \
   --data-urlencode "text=Merhaba, bu bir testtir." \
   --data-urlencode "language-id=tr" \
+  --data-urlencode "speaker-id=default" \
   --output test_get.wav
 ```
 
-### `POST /api/tts`
-JSON body ile TTS üretir.
+### `POST /tts`
+Generates WAV with JSON body (Coqui field names supported).
 
 Request body:
 ```json
 {
   "text": "Merhaba, bu bir testtir.",
   "language-id": "tr",
-  "speaker-id": "default"
+  "speaker-id": "default",
+  "speaker-wav": "/app/custom_reference.wav"
 }
 ```
 
+Notes:
+- `language-id` is accepted for compatibility; current model is Turkish.
+- `speaker-id` validates only `default`, `tr`, `main`.
+- `speaker-wav` must point to an existing file on the server/container.
+
 Example:
 ```bash
-curl -X POST "https://tts.drascom.uk/api/tts" \
+curl -X POST "https://tts.drascom.uk/tts" \
   -H "Content-Type: application/json" \
   -d '{"text":"Merhaba, bu bir testtir.","language-id":"tr","speaker-id":"default"}' \
   --output test_post.wav
@@ -93,7 +109,7 @@ Success response:
 ## 3) OpenAI-Compatible Endpoint
 
 ### `POST /v1/audio/speech`
-OpenAI benzeri TTS endpoint.
+OpenAI-style speech endpoint.
 
 Request body:
 ```json
@@ -102,6 +118,10 @@ Request body:
   "voice": "default"
 }
 ```
+
+Notes:
+- `input` is required.
+- `voice` maps to `speaker-id` and supports `default`, `tr`, `main`.
 
 Example:
 ```bash
@@ -114,26 +134,20 @@ curl -X POST "https://tts.drascom.uk/v1/audio/speech" \
 Success response:
 - Binary WAV audio (`audio/wav`)
 
-## Error Format
+## 4) Common Error Cases
 
-Error durumunda JSON döner:
-```json
-{
-  "detail": "error message"
-}
-```
+- `400` text/input is empty.
+- `400` `speaker-id`/`voice` is unknown.
+- `400` `speaker-wav` path does not exist.
+- `500` model file is missing, invalid, or a Git LFS pointer file.
 
-Örnek:
-- Model dosyası Git LFS pointer ise detaylı hata mesajı döner.
+## 5) Performance Notes
 
-## Performance Notes (Why it can be slow)
+- First request is slower because model is loaded lazily.
+- Inference runs with a global lock, so requests are processed one at a time.
+- CPU mode is significantly slower than CUDA.
 
-- İlk istek daha yavaştır (model + vocoder yüklenir).
-- Uzun `text` daha uzun inference süresi üretir.
-- GPU yoksa CPU oldukça yavaş olabilir.
-
-Hız için öneriler:
-- NVIDIA GPU ile çalıştırın (`F5_DEVICE=cuda`).
-- Metni daha kısa cümlelere bölün.
-- Container'ı sıcak tutun (ilk yükleme sonrası istekler hızlanır).
-- HF cache volume kullanın (tekrar indirme ve cold start maliyeti azalır).
+Recommendations:
+- Use GPU with `F5_DEVICE=cuda`.
+- Keep texts shorter.
+- Keep service warm to avoid cold-start overhead.

@@ -108,12 +108,12 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/languages")
+@app.get("/languages")
 def api_languages() -> dict[str, list[str]]:
     return {"languages": ["tr"]}
 
 
-@app.get("/api/speakers")
+@app.get("/speakers")
 def api_speakers() -> dict[str, list[str]]:
     return {"speakers": ["default"]}
 
@@ -143,7 +143,7 @@ def _synthesize(text: str, speaker_wav: str | None = None, speaker_id: str | Non
     return audio_buffer.getvalue()
 
 
-@app.get("/api/tts")
+@app.get("/tts")
 def tts_get(
     text: str = Query(..., min_length=1),
     speaker_wav: str | None = Query(default=None, alias="speaker-wav"),
@@ -155,7 +155,7 @@ def tts_get(
     return Response(content=audio, media_type="audio/wav")
 
 
-@app.post("/api/tts")
+@app.post("/tts")
 def tts_post(payload: CoquiTTSRequest) -> Response:
     _ = payload.language_id  # kept for Coqui compatibility
     audio = _synthesize(text=payload.text, speaker_wav=payload.speaker_wav, speaker_id=payload.speaker_id)
