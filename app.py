@@ -2,7 +2,7 @@ import io
 import logging
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -54,13 +54,15 @@ def _resolve_device(requested_device: str) -> str:
 
 @dataclass(frozen=True)
 class Settings:
-    model_name: str = os.getenv("F5_MODEL_NAME", "F5TTS_Base")
-    ckpt_file: Path = Path(os.getenv("F5_CKPT_FILE", str(BASE_DIR / "f5_tts_turkish_800000.safetensors")))
-    vocab_file: Path = Path(os.getenv("F5_VOCAB_FILE", str(BASE_DIR / "vocab.txt")))
-    reference_wav: Path = Path(os.getenv("F5_REFERENCE_WAV", str(BASE_DIR / "tr.wav")))
-    reference_text: str = os.getenv("F5_REFERENCE_TEXT", "")
-    device: str = _resolve_device(os.getenv("F5_DEVICE", "cpu"))
-    remove_silence: bool = os.getenv("F5_REMOVE_SILENCE", "false").lower() == "true"
+    model_name: str = field(default_factory=lambda: os.getenv("F5_MODEL_NAME", "F5TTS_Base"))
+    ckpt_file: Path = field(
+        default_factory=lambda: Path(os.getenv("F5_CKPT_FILE", str(BASE_DIR / "f5_tts_turkish_800000.safetensors")))
+    )
+    vocab_file: Path = field(default_factory=lambda: Path(os.getenv("F5_VOCAB_FILE", str(BASE_DIR / "vocab.txt"))))
+    reference_wav: Path = field(default_factory=lambda: Path(os.getenv("F5_REFERENCE_WAV", str(BASE_DIR / "tr.wav"))))
+    reference_text: str = field(default_factory=lambda: os.getenv("F5_REFERENCE_TEXT", ""))
+    device: str = field(default_factory=lambda: _resolve_device(os.getenv("F5_DEVICE", "cpu")))
+    remove_silence: bool = field(default_factory=lambda: os.getenv("F5_REMOVE_SILENCE", "false").lower() == "true")
 
 
 class CoquiTTSRequest(BaseModel):
@@ -114,27 +116,38 @@ def get_settings() -> Settings:
 @lru_cache(maxsize=1)
 def get_engine() -> F5TTS:
     settings = get_settings()
-    try:
-        return F5TTS(
-            model=settings.model_name,
-            ckpt_file=str(settings.ckpt_file),
-            vocab_file=str(settings.vocab_file),
-            device=settings.device,
-        )
-    except OSError as e:
-        if settings.device != "cpu" and "No such device" in str(e):
-            logger.warning(
-                "Model init failed on device '%s' (%s). Retrying on cpu.",
-                settings.device,
-                e,
-            )
-            return F5TTS(
-                model=settings.model_name,
-                ckpt_file=str(settings.ckpt_file),
-                vocab_file=str(settings.vocab_file),
-                device="cpu",
-            )
-        raise
+    if settings.device.startswith("cuda"):
+        candidate_devices = []
+        for candidate in (settings.device, "cuda", "cuda:0", "0"):
+            if candidate not in candidate_devices:
+                candidate_devices.append(candidate)
+
+        last_error: OSError | None = None
+        for device in candidate_devices:
+            try:
+                engine = F5TTS(
+                    model=settings.model_name,
+                    ckpt_file=str(settings.ckpt_file),
+                    vocab_file=str(settings.vocab_file),
+                    device=device,
+                )
+                logger.info("Initialized F5TTS on device '%s'", device)
+                return engine
+            except OSError as e:
+                last_error = e
+                if "No such device" in str(e):
+                    logger.warning("Model init failed on device '%s': %s", device, e)
+                    continue
+                raise
+
+        raise RuntimeError(f"CUDA init failed on all candidates {candidate_devices}: {last_error}")
+
+    return F5TTS(
+        model=settings.model_name,
+        ckpt_file=str(settings.ckpt_file),
+        vocab_file=str(settings.vocab_file),
+        device=settings.device,
+    )
 
 
 inference_lock = threading.Lock()
