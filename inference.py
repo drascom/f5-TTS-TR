@@ -1,4 +1,5 @@
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,10 @@ MODEL_DIR = Path(os.getenv("ORPHEUS_MODEL_DIR", Path(__file__).resolve().parent)
 PROMPT_DATA_DIR = Path(os.getenv("PROMPT_DATA_DIR", MODEL_DIR / "data")).resolve()
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", MODEL_DIR / "inference")).resolve()
 DEVICE = os.getenv("ORPHEUS_DEVICE", "cuda")
+tokenizer = None
+model = None
+snac_model = None
+init_lock = threading.Lock()
 
 
 def load_orpheus_tokenizer(model_id: str) -> AutoTokenizer:
@@ -154,13 +159,44 @@ def save_wav(samples: list[np.ndarray], sample_rate: int, filename: str):
 app = Flask(__name__)
 
 
+def ensure_initialized():
+    global tokenizer, model, snac_model
+    if tokenizer is not None and model is not None and snac_model is not None:
+        return
+
+    with init_lock:
+        if tokenizer is not None and model is not None and snac_model is not None:
+            return
+
+        required = [
+            MODEL_DIR / "config.json",
+            MODEL_DIR / "model.safetensors.index.json",
+            MODEL_DIR / "model-00001-of-00003.safetensors",
+            MODEL_DIR / "model-00002-of-00003.safetensors",
+            MODEL_DIR / "model-00003-of-00003.safetensors",
+            MODEL_DIR / "tokenizer.json",
+        ]
+        if not all(p.exists() and p.stat().st_size > 1024 for p in required):
+            snapshot_download(
+                repo_id="Karayakar/Orpheus-TTS-Turkish-PT-5000",
+                local_dir=str(MODEL_DIR),
+                local_dir_use_symlinks=False,
+            )
+
+        tokenizer = load_orpheus_tokenizer(str(MODEL_DIR))
+        model = load_orpheus_auto_model(str(MODEL_DIR))
+        snac_model = load_snac()
+
+
 @app.get("/health")
 def health():
+    ensure_initialized()
     return {"status": "ok", "device": DEVICE}
 
 
 @app.post("/generate")
 def generate():
+    ensure_initialized()
     payload = request.get_json(silent=True) or {}
     text = (payload.get("text") or "").strip()
     if not text:
@@ -180,23 +216,5 @@ def generate():
 
 
 if __name__ == "__main__":
-    # Ensure model artifacts exist locally. If missing, download once.
-    required = [
-        MODEL_DIR / "config.json",
-        MODEL_DIR / "model.safetensors.index.json",
-        MODEL_DIR / "model-00001-of-00003.safetensors",
-        MODEL_DIR / "model-00002-of-00003.safetensors",
-        MODEL_DIR / "model-00003-of-00003.safetensors",
-        MODEL_DIR / "tokenizer.json",
-    ]
-    if not all(p.exists() and p.stat().st_size > 1024 for p in required):
-        snapshot_download(
-            repo_id="Karayakar/Orpheus-TTS-Turkish-PT-5000",
-            local_dir=str(MODEL_DIR),
-            local_dir_use_symlinks=False,
-        )
-
-    tokenizer = load_orpheus_tokenizer(str(MODEL_DIR))
-    model = load_orpheus_auto_model(str(MODEL_DIR))
-    snac_model = load_snac()
+    ensure_initialized()
     app.run(host="0.0.0.0", debug=False, port=int(os.getenv("PORT", "5400")))
