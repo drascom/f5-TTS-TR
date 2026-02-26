@@ -39,7 +39,31 @@ python -m pip install \
   accelerate \
   bitsandbytes
 
-python - <<PY
+is_lfs_pointer() {
+  local file="$1"
+  [[ -f "$file" ]] && head -n 1 "$file" 2>/dev/null | grep -q "version https://git-lfs.github.com/spec/v1"
+}
+
+need_download=0
+required_files=(
+  "${ROOT_DIR}/config.json"
+  "${ROOT_DIR}/model.safetensors.index.json"
+  "${ROOT_DIR}/model-00001-of-00003.safetensors"
+  "${ROOT_DIR}/model-00002-of-00003.safetensors"
+  "${ROOT_DIR}/model-00003-of-00003.safetensors"
+  "${ROOT_DIR}/tokenizer.json"
+)
+
+for file in "${required_files[@]}"; do
+  if [[ ! -s "$file" ]] || is_lfs_pointer "$file"; then
+    need_download=1
+    break
+  fi
+done
+
+if [[ "$need_download" -eq 1 ]]; then
+  echo "Model files missing or pointers detected. Downloading from Hugging Face..."
+  python - <<PY
 from huggingface_hub import snapshot_download
 snapshot_download(
     repo_id="${HF_REPO}",
@@ -47,6 +71,9 @@ snapshot_download(
     local_dir="${ROOT_DIR}",
 )
 PY
+else
+  echo "Required model files already exist. Skipping download."
+fi
 
 export ORPHEUS_MODEL_DIR="${ROOT_DIR}"
 export ORPHEUS_DEVICE="${ORPHEUS_DEVICE:-cuda}"
