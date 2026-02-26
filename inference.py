@@ -6,7 +6,7 @@ from pathlib import Path
 import librosa
 import numpy as np
 import torch
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from huggingface_hub import snapshot_download
 from scipy.io.wavfile import write
 from snac import SNAC
@@ -200,7 +200,41 @@ def health():
 
 
 @app.post("/generate")
-def generate():
+def generate_file():
+    ensure_initialized()
+    payload = request.get_json(silent=True) or {}
+    text = (payload.get("text") or "").strip()
+    requested_output_path = (payload.get("output_path") or "").strip()
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    texts = [text]
+    input_ids, attention_mask = prepare_inputs(texts, tokenizer)
+    generated_ids = run_inference(model, input_ids, attention_mask)
+    samples = convert_tokens_to_speech(generated_ids, snac_model)
+    wav_forms = to_wav_from(samples)
+
+    if requested_output_path:
+        raw_path = Path(requested_output_path)
+        if raw_path.is_absolute():
+            out_file = raw_path
+        else:
+            out_file = OUTPUT_DIR / raw_path
+
+        if out_file.suffix.lower() != ".wav":
+            out_file = out_file / f"output_{int(datetime.now().timestamp())}.wav"
+    else:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        out_file = OUTPUT_DIR / f"output_{int(datetime.now().timestamp())}.wav"
+
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    save_wav(wav_forms, 24000, str(out_file))
+
+    return send_file(str(out_file), mimetype="audio/wav", as_attachment=True, download_name=out_file.name)
+
+
+@app.post("/generate-json")
+def generate_json():
     ensure_initialized()
     payload = request.get_json(silent=True) or {}
     text = (payload.get("text") or "").strip()
