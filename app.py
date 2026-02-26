@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import soundfile as sf
+import torch
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -28,6 +29,26 @@ def _looks_like_git_lfs_pointer(path: Path) -> bool:
     return head.startswith("version https://git-lfs.github.com/spec/v1")
 
 
+def _resolve_device(requested_device: str) -> str:
+    device = (requested_device or "cpu").strip().lower()
+
+    if device == "cuda":
+        if torch.cuda.is_available():
+            return "cuda"
+        return "cpu"
+
+    if device == "mps":
+        mps_backend = getattr(torch.backends, "mps", None)
+        if mps_backend and mps_backend.is_available():
+            return "mps"
+        return "cpu"
+
+    if device in {"cpu", "meta"}:
+        return device
+
+    return "cpu"
+
+
 @dataclass(frozen=True)
 class Settings:
     model_name: str = os.getenv("F5_MODEL_NAME", "F5TTS_Base")
@@ -35,7 +56,7 @@ class Settings:
     vocab_file: Path = Path(os.getenv("F5_VOCAB_FILE", str(BASE_DIR / "vocab.txt")))
     reference_wav: Path = Path(os.getenv("F5_REFERENCE_WAV", str(BASE_DIR / "tr.wav")))
     reference_text: str = os.getenv("F5_REFERENCE_TEXT", "")
-    device: str = os.getenv("F5_DEVICE", "cpu")
+    device: str = _resolve_device(os.getenv("F5_DEVICE", "cpu"))
     remove_silence: bool = os.getenv("F5_REMOVE_SILENCE", "false").lower() == "true"
 
 
@@ -122,7 +143,7 @@ def _synthesize(text: str, speaker_wav: str | None = None, speaker_id: str | Non
     try:
         settings = get_settings()
         engine = get_engine()
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
     if not text.strip():
