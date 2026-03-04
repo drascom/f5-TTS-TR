@@ -193,3 +193,5 @@ setup_systemd_service
 
 echo "Service installed/enabled: ${SERVICE_NAME}"
 echo "Check status with: sudo systemctl status ${SERVICE_NAME}"
+echo "Health check endpoint:"
+echo "  curl -s http://127.0.0.1:${PORT:-5400}/health"

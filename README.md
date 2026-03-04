@@ -41,6 +41,13 @@ cd f5-TTS-TR
 
 `install.sh` creates and enables a systemd service named `tts` and starts it.
 
+Check service and API health:
+
+```bash
+sudo systemctl status tts
+curl -s http://127.0.0.1:5400/health
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` and update values as needed.  
