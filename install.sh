@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 INSTALL_MARKER="${ROOT_DIR}/.installed"
+SERVICE_NAME="tts"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+RUN_USER="${SUDO_USER:-$(id -un)}"
 
 cd "${ROOT_DIR}"
 
@@ -17,6 +20,44 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
+setup_systemd_service() {
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "systemd not found. Skipping service setup."
+    return
+  fi
+
+  local service_content
+  service_content="[Unit]
+Description=Turkish TTS API Service
+After=network.target
+
+[Service]
+Type=simple
+User=${RUN_USER}
+WorkingDirectory=${ROOT_DIR}
+ExecStart=${ROOT_DIR}/start.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+"
+
+  if command -v sudo >/dev/null 2>&1; then
+    echo "${service_content}" | sudo tee "${SERVICE_FILE}" >/dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl enable "${SERVICE_NAME}"
+    sudo systemctl restart "${SERVICE_NAME}"
+  elif [[ "${EUID}" -eq 0 ]]; then
+    echo "${service_content}" > "${SERVICE_FILE}"
+    systemctl daemon-reload
+    systemctl enable "${SERVICE_NAME}"
+    systemctl restart "${SERVICE_NAME}"
+  else
+    echo "No sudo/root permissions. Skipping service setup for ${SERVICE_NAME}."
+  fi
+}
+
 if [[ -f "${INSTALL_MARKER}" && -d "${VENV_DIR}" ]]; then
   choice="run"
   if [[ -t 0 ]]; then
@@ -29,7 +70,21 @@ if [[ -f "${INSTALL_MARKER}" && -d "${VENV_DIR}" ]]; then
   fi
 
   if [[ "${choice}" == "run" ]]; then
-    echo "Skipping reinstall. Starting app..."
+    echo "Skipping reinstall."
+    if command -v systemctl >/dev/null 2>&1 && { systemctl list-unit-files 2>/dev/null || true; } | grep -q "^${SERVICE_NAME}\.service"; then
+      if command -v sudo >/dev/null 2>&1; then
+        sudo systemctl restart "${SERVICE_NAME}"
+      elif [[ "${EUID}" -eq 0 ]]; then
+        systemctl restart "${SERVICE_NAME}"
+      else
+        echo "No sudo/root permissions. Starting app directly..."
+        exec "${ROOT_DIR}/start.sh"
+      fi
+      echo "Service restarted: ${SERVICE_NAME}"
+      exit 0
+    fi
+
+    echo "Starting app directly..."
     exec "${ROOT_DIR}/start.sh"
   fi
 fi
@@ -133,3 +188,8 @@ cat > "${INSTALL_MARKER}" <<EOF
 installed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 python=$(python3 --version 2>&1)
 EOF
+
+setup_systemd_service
+
+echo "Service installed/enabled: ${SERVICE_NAME}"
+echo "Check status with: sudo systemctl status ${SERVICE_NAME}"

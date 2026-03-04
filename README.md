@@ -37,8 +37,9 @@ curl -X POST "http://127.0.0.1:5400/generate" \
 git clone https://github.com/drascom/f5-TTS-TR.git
 cd f5-TTS-TR
 ./install.sh
-./start.sh
 ```
+
+`install.sh` creates and enables a systemd service named `tts` and starts it.
 
 ## Configuration
 
@@ -59,3 +60,4 @@ Common variables:
 - For GPU servers, keep `ORPHEUS_DEVICE=cuda`.
 - After first successful setup, `install.sh` writes a local `.installed` marker.
 - If you run `install.sh` again, it asks `run` or `reinstall` (non-interactive default: `run`).
+- The service is installed as `tts.service` and enabled to auto-start after reboot.
