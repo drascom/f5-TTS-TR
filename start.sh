@@ -17,7 +17,7 @@ export ORPHEUS_DEVICE="${ORPHEUS_DEVICE:-cuda}"
 export PORT="${PORT:-5400}"
 
 if [[ ! -d "${VENV_DIR}" ]]; then
-  echo "Missing virtualenv at ${VENV_DIR}. Run ./bootstrap_run.sh first."
+  echo "Missing virtualenv at ${VENV_DIR}. Run ./install.sh first."
   exit 1
 fi
 
