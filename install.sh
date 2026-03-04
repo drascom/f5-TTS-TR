@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
+INSTALL_MARKER="${ROOT_DIR}/.installed"
 
 cd "${ROOT_DIR}"
 
@@ -14,6 +15,23 @@ fi
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required"
   exit 1
+fi
+
+if [[ -f "${INSTALL_MARKER}" && -d "${VENV_DIR}" ]]; then
+  choice="run"
+  if [[ -t 0 ]]; then
+    echo "Installation already detected (${INSTALL_MARKER})."
+    read -r -p "Choose action [run/reinstall] (default: run): " input_choice
+    input_choice="$(echo "${input_choice}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "${input_choice}" == "reinstall" || "${input_choice}" == "run" ]]; then
+      choice="${input_choice}"
+    fi
+  fi
+
+  if [[ "${choice}" == "run" ]]; then
+    echo "Skipping reinstall. Starting app..."
+    exec "${ROOT_DIR}/start.sh"
+  fi
 fi
 
 if [[ -d .git ]]; then
@@ -110,3 +128,8 @@ echo ""
 echo "Install complete."
 echo "Run the API with:"
 echo "  ./start.sh"
+
+cat > "${INSTALL_MARKER}" <<EOF
+installed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+python=$(python3 --version 2>&1)
+EOF

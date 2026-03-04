@@ -57,3 +57,5 @@ Common variables:
 - `install.sh` updates the local git checkout (`git pull --ff-only`).
 - If model shards are missing, `install.sh` downloads them from Hugging Face.
 - For GPU servers, keep `ORPHEUS_DEVICE=cuda`.
+- After first successful setup, `install.sh` writes a local `.installed` marker.
+- If you run `install.sh` again, it asks `run` or `reinstall` (non-interactive default: `run`).
