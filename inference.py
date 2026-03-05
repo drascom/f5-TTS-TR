@@ -126,8 +126,11 @@ def convert_tokens_to_speech(generated_ids, snac_model):
     token_indices = (generated_ids == token_to_find).nonzero(as_tuple=True)
 
     if len(token_indices[1]) > 0:
-        last_occurrence_idx = token_indices[1][-1].item()
-        cropped_tensor = generated_ids[:, last_occurrence_idx + 1 :]
+        # Use the first boundary token as start of audio codes.
+        # Using the last one can truncate output when the model emits
+        # additional boundary tokens later in generation.
+        first_occurrence_idx = token_indices[1][0].item()
+        cropped_tensor = generated_ids[:, first_occurrence_idx + 1 :]
     else:
         cropped_tensor = generated_ids
 
