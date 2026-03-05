@@ -18,6 +18,7 @@ PROMPT_DATA_DIR = Path(os.getenv("PROMPT_DATA_DIR", MODEL_DIR / "data")).resolve
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", MODEL_DIR / "inference")).resolve()
 DEVICE = os.getenv("ORPHEUS_DEVICE", "cuda")
 MAX_NEW_TOKENS = int(os.getenv("ORPHEUS_MAX_NEW_TOKENS", "512"))
+MIN_NEW_TOKENS = int(os.getenv("ORPHEUS_MIN_NEW_TOKENS", "256"))
 TEMPERATURE = float(os.getenv("ORPHEUS_TEMPERATURE", "0.2"))
 TOP_K = int(os.getenv("ORPHEUS_TOP_K", "10"))
 TOP_P = float(os.getenv("ORPHEUS_TOP_P", "0.9"))
@@ -81,11 +82,13 @@ def prepare_inputs(text_prompts: list[str], tokenizer):
 
 
 def run_inference(model, input_ids, attention_mask):
+    min_new_tokens = max(0, min(MIN_NEW_TOKENS, MAX_NEW_TOKENS))
     with torch.no_grad():
         generated_ids = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
             max_new_tokens=MAX_NEW_TOKENS,
+            min_new_tokens=min_new_tokens,
             do_sample=True,
             temperature=TEMPERATURE,
             top_k=TOP_K,

@@ -64,6 +64,7 @@ Common variables:
 - `ORPHEUS_MODEL_DIR` (default: project root)
 - `OUTPUT_DIR` (default: `./inference`)
 - `HF_REPO` (default: `Karayakar/Orpheus-TTS-Turkish-PT-5000`)
+- `ORPHEUS_MAX_NEW_TOKENS` / `ORPHEUS_MIN_NEW_TOKENS` to control output length floor/cap
 
 ## Notes
 
