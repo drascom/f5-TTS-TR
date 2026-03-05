@@ -1,12 +1,13 @@
 # Orpheus Turkish TTS API
 
-Simple Flask API for Turkish text-to-speech using the Orpheus model.
+Simple Flask API (with a lightweight web UI) for Turkish text-to-speech using the Orpheus model.
 
 ## Folder Structure
 
 ```
 .
 ├── inference.py        # Flask API application
+├── templates/index.html # Browser UI for testing TTS
 ├── install.sh          # Setup/update script (deps + model + .env)
 ├── start.sh            # Run API (gunicorn if available, else python)
 ├── .env.example        # Environment template
@@ -18,6 +19,7 @@ Simple Flask API for Turkish text-to-speech using the Orpheus model.
 
 ## API Endpoints
 
+- `GET /` (web UI)
 - `GET /health`
 - `POST /generate` (returns WAV file)
 - `POST /generate-json` (returns JSON with file path)
@@ -29,6 +31,9 @@ curl -X POST "http://127.0.0.1:5400/generate" \
   -H "Content-Type: application/json" \
   -d '{"text":"Merhaba, bu bir testtir."}' \
   --output test.wav
+
+# Open browser test UI
+open http://127.0.0.1:5400/
 ```
 
 ## Quick Start (Server)

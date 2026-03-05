@@ -6,7 +6,7 @@ from pathlib import Path
 import librosa
 import numpy as np
 import torch
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file
 from huggingface_hub import snapshot_download
 from scipy.io.wavfile import write
 from snac import SNAC
@@ -162,6 +162,11 @@ def save_wav(samples: list[np.ndarray], sample_rate: int, filename: str):
 
 
 app = Flask(__name__)
+
+
+@app.get("/")
+def index():
+    return render_template("index.html")
 
 
 def ensure_initialized():

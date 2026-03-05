@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orpheus Turkish TTS</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0f766e;
+      --accent-hover: #115e59;
+      --border: #dbe3ef;
+      --danger: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background: linear-gradient(140deg, #eef4ff 0%, #f7fbff 55%, #ecfdf5 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: min(760px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      font: inherit;
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: #8ab4f8;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    }
+
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 120ms ease, background-color 120ms ease;
+    }
+
+    button:hover { background: var(--accent-hover); }
+    button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    #status {
+      min-height: 1.2em;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    #status.error { color: var(--danger); }
+
+    #result {
+      margin-top: 18px;
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    audio { width: 100%; }
+
+    a {
+      display: inline-block;
+      margin-top: 10px;
+      color: #075985;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Orpheus Turkish TTS Test UI</h1>
+    <p>Write Turkish text, generate speech, and listen in browser.</p>
+
+    <label for="tts-text">Text</label>
+    <textarea id="tts-text" placeholder="Merhaba, bu bir testtir."></textarea>
+
+    <div class="controls">
+      <button id="generate-btn" type="button">Generate Audio</button>
+      <span id="status"></span>
+    </div>
+
+    <section id="result">
+      <audio id="audio-player" controls></audio>
+      <a id="download-link" download="tts-output.wav">Download WAV</a>
+    </section>
+  </main>
+
+  <script>
+    const textEl = document.getElementById("tts-text");
+    const buttonEl = document.getElementById("generate-btn");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+    const playerEl = document.getElementById("audio-player");
+    const downloadEl = document.getElementById("download-link");
+
+    let currentObjectUrl = null;
+
+    async function generateAudio() {
+      const text = textEl.value.trim();
+      if (!text) {
+        statusEl.textContent = "Please enter text first.";
+        statusEl.classList.add("error");
+        return;
+      }
+
+      buttonEl.disabled = true;
+      statusEl.classList.remove("error");
+      statusEl.textContent = "Generating audio...";
+
+      try {
+        const response = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || "Failed to generate audio");
+        }
+
+        const blob = await response.blob();
+        if (currentObjectUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+        }
+
+        currentObjectUrl = URL.createObjectURL(blob);
+        playerEl.src = currentObjectUrl;
+        downloadEl.href = currentObjectUrl;
+        resultEl.style.display = "block";
+        statusEl.textContent = "Done.";
+      } catch (error) {
+        statusEl.textContent = `Error: ${error.message}`;
+        statusEl.classList.add("error");
+      } finally {
+        buttonEl.disabled = false;
+      }
+    }
+
+    buttonEl.addEventListener("click", generateAudio);
+  </script>
+</body>
+</html>
